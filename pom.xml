@@ -14,21 +14,15 @@
     
     <developers>
         <developer>
-            <name>weixiaoqiang</name>
-            <email>weixiaoqiang0717@163.com</email>
+            <name>Sean Wei</name>
+            <email>seanwei@163.com</email>
             <url></url>
         </developer>
     </developers>
     
-    <scm>
-        <url>http://github.com/weixiaoqiang123/mybatis-batch</url>
-        <connection>scm:git:ssh://github.com/weixiaoqiang123/mybatis-batch</connection>
-        <developerConnection>scm:git:ssh://git@github.com/weixiaoqiang123/mybatis-batch.git</developerConnection>
-        <tag>HEAD</tag>
-    </scm>
     <issueManagement>
         <system>GitHub Issue Management</system>
-        <url>https://github.com/weixiaoqiang123/mybatis-batch/issues</url>
+        <url>https://github.com/plato-wei/mybatis-batch/issues</url>
     </issueManagement>
     
     <properties>
@@ -44,7 +38,7 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
             <version>${spring.framework.version}</version>
-            <scope>import</scope>
+            <scope>provided</scope>
         </dependency>
     
         <dependency>
@@ -64,16 +58,28 @@
     
     <build>
         <plugins>
+            <!-- 执行deploy前清空文件夹 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.2.2</version>
-                <configuration>
-                    <outputDirectory>${project.basedir}/repo</outputDirectory>
-                </configuration>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.0.0</version>
+                <executions>
+                    <execution>
+                        <id>clean-target-directory</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- 删除目标文件夹 -->
+                                <delete dir="${project.basedir}/repo"/>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
-            
-            <!--源码-->
+    
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
@@ -88,31 +94,77 @@
                 </executions>
             </plugin>
             
-            <!--github上传插件,用于修改后的发布,执行 mvn clean deploy 自动打包上传到github-->
             <plugin>
-                <groupId>com.github.github</groupId>
-                <artifactId>site-maven-plugin</artifactId>
-                <version>0.12</version>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>2.7</version>
                 <configuration>
-                    <message>Release ${project.groupId}:${project.artifactId}:${project.version}</message>
-                    <noJekyll>true</noJekyll>
-                    <outputDirectory>${project.basedir}/repo</outputDirectory>
-                    <!--分支-->
-                    <branch>refs/heads/main</branch>
-                    <merge>true</merge>
-                    <includes>
-                        <include>**/*</include>
-                    </includes>
-                    <repositoryName>mvn-repo</repositoryName>
-                    <repositoryOwner>weixiaoqiang123</repositoryOwner>
+                    <altDeploymentRepository>maven.repo::default::file://${project.basedir}/repo</altDeploymentRepository>
                 </configuration>
-                
+            </plugin>
+            
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.0.0</version>
                 <executions>
                     <execution>
-                        <goals>
-                            <goal>site</goal>
-                        </goals>
+                        <id>add-executable-permission</id>
                         <phase>deploy</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>chmod</executable>
+                            <arguments>
+                                <argument>+x</argument>
+                                <argument>${project.basedir}/script/deploy.sh</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>push-packages-to-gitee-repo</id>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <basedir>${project.basedir}/repo</basedir>
+                            <executable>${project.basedir}/script/deploy.sh</executable>
+                            <arguments>
+                                <argument>--branch</argument>
+                                <argument>master</argument>
+                                <argument>--path</argument>
+                                <argument>/repo</argument>
+                                <argument>--message</argument>
+                                <argument>Release ${project.groupId}:${build.finalName}.${project.packaging}</argument>
+                                <argument>--url</argument>
+                                <argument>https://gitee.com/coderweq/mvn-repo</argument>
+                                <argument>--server-id</argument>
+                                <argument>gitee</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>push-packages-to-github-repo</id>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <basedir>${project.basedir}/repo</basedir>
+                            <executable>${project.basedir}/script/deploy.sh</executable>
+                            <arguments>
+                                <argument>--branch</argument>
+                                <argument>main</argument>
+                                <argument>--message</argument>
+                                <argument>Release ${project.groupId}:${build.finalName}.${project.packaging}</argument>
+                                <argument>--url</argument>
+                                <argument>https://github.com/palto-wei/mvn-repo</argument>
+                                <argument>--server-id</argument>
+                                <argument>github-https</argument>
+                            </arguments>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
